@@ -1,6 +1,6 @@
-# Product Management API
+# Users API
 
-A production-grade Spring Boot REST API for product management, implemented as a bank coding interview project.
+A simple Spring Boot REST API for user management using JDBC with H2 in-memory database.
 
 ---
 
@@ -8,7 +8,8 @@ A production-grade Spring Boot REST API for product management, implemented as a
 
 - Java 21
 - Spring Boot 3.3.4
-- Spring Data JPA + H2 (in-memory)
+- Spring JDBC (JdbcTemplate)
+- H2 Database (in-memory)
 - Bean Validation (Jakarta)
 - Lombok
 - Maven
@@ -18,12 +19,12 @@ A production-grade Spring Boot REST API for product management, implemented as a
 ## How to Run
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
-The application starts on **http://localhost:8080**.
+The application starts on **http://localhost:8080**
 
-H2 Console is available at **http://localhost:8080/h2-console**
+H2 Console: **http://localhost:8080/h2-console**
 - JDBC URL: `jdbc:h2:mem:productdb`
 - Username: `sa`
 - Password: *(empty)*
@@ -35,153 +36,169 @@ H2 Console is available at **http://localhost:8080/h2-console**
 ```
 src/main/java/com/example/productspring/
 ├── ProductSpringApplication.java
-├── config/
-│   └── JpaAuditingConfig.java
 ├── controller/
-│   └── ProductController.java
-├── dto/
-│   ├── ProductRequest.java
-│   ├── ProductResponse.java
-│   ├── UpdateStatusRequest.java
-│   └── ProductStatisticsResponse.java
-├── entity/
-│   ├── Product.java
-│   └── ProductStatus.java
+│   └── UserController.java
 ├── exception/
-│   ├── DuplicateResourceException.java
-│   ├── EntityNotFoundException.java
-│   ├── ErrorResponse.java
-│   └── GlobalExceptionHandler.java
+│   ├── GlobalExceptionHandler.java
+│   └── UserNotFoundException.java
+├── model/
+│   └── User.java
 ├── repository/
-│   └── ProductRepository.java
-├── service/
-│   ├── ProductService.java
-│   └── ProductServiceImpl.java
-└── specification/
-    └── ProductSpecification.java
+│   └── UserRepository.java
+└── service/
+    └── UserService.java
+
+src/main/resources/
+├── application.yml
+├── schema.sql
+└── data.sql
 ```
 
 ---
 
 ## API List
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | /products | Create a product |
-| GET | /products | List products (paginated) |
-| GET | /products/{id} | Get product by ID |
-| PUT | /products/{id} | Update product |
-| DELETE | /products/{id} | Delete product |
-| GET | /products/search | Search with filters |
-| PATCH | /products/{id}/status | Update status only |
-| GET | /products/statistics | Get statistics |
+| Method | Path | Description | Status |
+|--------|------|-------------|--------|
+| GET | /users | Get all users | 200 |
+| GET | /users/{userId} | Get user by ID | 200 / 404 |
+| POST | /users | Create a user | 201 |
+| PUT | /users/{userId} | Update a user | 200 / 404 |
+| DELETE | /users/{userId} | Delete a user | 204 / 404 |
 
 ---
 
-## Example Requests
+## Example Requests & Responses
 
-### Create Product
-```http
-POST /products
-Content-Type: application/json
-
-{
-  "sku": "SKU-NEW-001",
-  "name": "Wireless Mouse",
-  "description": "Ergonomic wireless mouse",
-  "category": "Electronics",
-  "price": 1290.00,
-  "quantity": 50,
-  "status": "ACTIVE"
-}
+### GET /users
+```bash
+curl -s http://localhost:8080/users | jq
+```
+```json
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "phone": "555-1234",
+    "website": "https://johndoe.com"
+  }
+]
 ```
 
-### List Products (paginated)
-```http
-GET /products?page=0&size=5&sort=name,asc
+### GET /users/{userId}
+```bash
+curl -s http://localhost:8080/users/1 | jq
 ```
-
-### Search Products
-```http
-GET /products/search?keyword=laptop&category=Electronics&status=ACTIVE&minPrice=50000&maxPrice=100000
-```
-
-### Update Status
-```http
-PATCH /products/1/status
-Content-Type: application/json
-
-{
-  "status": "INACTIVE"
-}
-```
-
----
-
-## Example Responses
-
-### ProductResponse
 ```json
 {
   "id": 1,
-  "sku": "SKU-ELEC-001",
-  "name": "iPhone 15 Pro",
-  "description": "Latest Apple smartphone with titanium frame",
-  "category": "Electronics",
-  "price": 49900.0000,
-  "quantity": 100,
-  "status": "ACTIVE",
-  "createdAt": "2024-01-15T10:30:00",
-  "updatedAt": "2024-01-15T10:30:00"
+  "name": "John Doe",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "phone": "555-1234",
+  "website": "https://johndoe.com"
 }
 ```
 
-### Statistics
+### POST /users
+```bash
+curl -s -X POST http://localhost:8080/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Bob Martin",
+    "username": "bobmartin",
+    "email": "bob@example.com",
+    "phone": "555-0000",
+    "website": "https://bob.com"
+  }' | jq
+```
 ```json
 {
-  "totalProducts": 15,
-  "activeProducts": 10,
-  "inactiveProducts": 5,
-  "totalInventoryValue": 12345678.0000,
-  "averagePrice": 15230.5000
+  "id": 4,
+  "name": "Bob Martin",
+  "username": "bobmartin",
+  "email": "bob@example.com",
+  "phone": "555-0000",
+  "website": "https://bob.com"
 }
 ```
 
-### Error Response
+### PUT /users/{userId}
+```bash
+curl -s -X PUT http://localhost:8080/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Updated",
+    "username": "johndoe",
+    "email": "john.updated@example.com"
+  }' | jq
+```
+
+### DELETE /users/{userId}
+```bash
+curl -s -X DELETE http://localhost:8080/users/1 -w "\nHTTP %{http_code}\n"
+```
+
+---
+
+## Error Responses
+
+### 404 Not Found
 ```json
 {
-  "timestamp": "2024-01-15T10:30:00",
   "status": 404,
-  "error": "Not Found",
-  "message": "Product not found with id: 999",
-  "path": "/products/999"
+  "message": "User not found with id: 99"
+}
+```
+
+### 400 Validation Error
+```bash
+curl -s -X POST http://localhost:8080/users \
+  -H "Content-Type: application/json" \
+  -d '{}' | jq
+```
+```json
+{
+  "status": 400,
+  "message": "Validation failed",
+  "errors": [
+    "name must not be blank",
+    "username must not be blank",
+    "email must not be blank"
+  ]
+}
+```
+
+### 500 Internal Server Error
+```json
+{
+  "status": 500,
+  "message": "Internal Server Error"
 }
 ```
 
 ---
 
-## Business Rules
+## Sample Data
 
-1. SKU must be unique across all products.
-2. Product name cannot be duplicated within the same category.
-3. Price must be greater than zero.
-4. Quantity cannot be negative.
-5. ACTIVE products cannot be deleted.
-6. Products with quantity = 0 cannot have status ACTIVE (applies to create and update).
-7. `createdAt` is set once and never updated (`updatable = false`).
-8. Null/blank search filters are ignored.
-9. Returns HTTP 404 when a product does not exist.
-10. All validation messages are descriptive and field-specific.
-11. SKU cannot be modified after creation (PUT validates SKU matches).
-12. Category cannot be blank.
-13. All input strings are trimmed before persistence.
+Seeded automatically on startup via `data.sql`:
+
+| ID | Name | Username | Email |
+|----|------|----------|-------|
+| 1 | John Doe | johndoe | john@example.com |
+| 2 | Jane Smith | janesmith | jane@example.com |
+| 3 | Alice Johnson | alicejohnson | alice@example.com |
 
 ---
 
-## Assumptions
+## Validation Rules
 
-- Statistics cover all products regardless of status (inventory value = SUM of price × quantity for all products).
-- The `search` endpoint is separate from the paginated `list` endpoint to keep concerns distinct.
-- `PUT /products/{id}` requires the SKU in the body and validates it has not changed.
-- Enum values (`ACTIVE`, `INACTIVE`) are case-sensitive in request bodies.
-- `description` is optional and may be null.
+| Field | Rule |
+|-------|------|
+| name | Required, not blank |
+| username | Required, not blank |
+| email | Required, not blank |
+| phone | Optional |
+| website | Optional |
